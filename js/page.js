@@ -210,6 +210,14 @@
     return Math.max(1, Math.round((cols * h) / w));
   }
 
+  function fitTape(n, aspect) {
+    n = Math.max(1, n | 0);
+    aspect = aspect && aspect > 0.2 ? aspect : 1.15;
+    const cols = Math.max(8, Math.round(Math.sqrt(n * aspect)));
+    const rows = Math.max(1, Math.ceil(n / cols));
+    return { cols: cols, rows: rows };
+  }
+
   function loadImage(url) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -376,8 +384,15 @@
       state.padBytes = enc.padBytes;
       const dec = Quads.decodeTextpic(enc.glyphs, w2, h2, w3, h3);
       state.ascii = dec.text;
-      state.gridCols = cols;
-      state.gridRows = Math.max(1, Math.ceil(state.glyphs.length / cols));
+      const stage = document.querySelector(".stage");
+      const sr = stage ? stage.getBoundingClientRect() : { width: 800, height: 700 };
+      const tape = fitTape(state.glyphs.length, sr.width / Math.max(1, sr.height));
+      state.gridCols = tape.cols;
+      state.gridRows = tape.rows;
+      if (state.teaching) {
+        state.caption = caption;
+        if ($("caption")) $("caption").value = caption;
+      }
       state._textpicPlanes = {
         c2: ImageCodec.bitsToPlane(dec.a, w2, h2),
         c3: ImageCodec.bitsToPlane(dec.b, w3, h3),
@@ -403,6 +418,10 @@
     }
     state.grid = grid;
     state.indexAt = indexAt;
+    if (state.selected && (state.selected.col >= grid.cols || state.selected.row >= grid.rows)) {
+      state.selected = null;
+      if ($("inspect-line")) $("inspect-line").textContent = "Click a cell.";
+    }
   }
 
   function drawDecode() {
@@ -434,26 +453,44 @@
     ctx.fillRect(0, 0, sized.w, sized.h);
     const filled = state.filledFrame || state.ebsPaint === "filled";
     const n = state.glyphs.length;
-    for (let i = 0; i < n; i++) {
-      const p = QuadPage.slotPos(i, state.grid, state.weave);
-      const rect = QuadPage.cellRect(p.col, p.row, state.grid);
-      const code = G_CODE[state.glyphs[i]] || 0;
-      const color = glyphPaint(code, i);
-      let x = rect.x;
-      let y = rect.y;
-      let w = rect.w;
-      let h = rect.h;
-      if (state.gaps) {
-        const gap = Math.max(0.35, Math.min(w, h) * 0.08);
-        x += gap / 2;
-        y += gap / 2;
-        w = Math.max(0.5, w - gap);
-        h = Math.max(0.5, h - gap);
+    const tiny = state.grid.cellW < 2.2 || state.grid.cellH < 2.2;
+    const useBlit = filled || tiny || n > 40000;
+    if (useBlit) {
+      const off = document.createElement("canvas");
+      off.width = cols;
+      off.height = rows;
+      const octx = off.getContext("2d");
+      const img = octx.createImageData(cols, rows);
+      const data = img.data;
+      for (let i = 0; i < n; i++) {
+        const p = QuadPage.slotPos(i, state.grid, state.weave);
+        const rgb = hexRgb(glyphPaint(G_CODE[state.glyphs[i]] || 0, i));
+        const o = (p.row * cols + p.col) * 4;
+        data[o] = rgb[0];
+        data[o + 1] = rgb[1];
+        data[o + 2] = rgb[2];
+        data[o + 3] = 255;
       }
-      if (filled) {
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, w, h);
-      } else {
+      octx.putImageData(img, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(off, 0, 0, sized.w, sized.h);
+    } else {
+      for (let i = 0; i < n; i++) {
+        const p = QuadPage.slotPos(i, state.grid, state.weave);
+        const rect = QuadPage.cellRect(p.col, p.row, state.grid);
+        const code = G_CODE[state.glyphs[i]] || 0;
+        const color = glyphPaint(code, i);
+        let x = rect.x;
+        let y = rect.y;
+        let w = rect.w;
+        let h = rect.h;
+        if (state.gaps) {
+          const gap = Math.max(0.35, Math.min(w, h) * 0.08);
+          x += gap / 2;
+          y += gap / 2;
+          w = Math.max(0.5, w - gap);
+          h = Math.max(0.5, h - gap);
+        }
         drawGlyph(ctx, x, y, w, h, code, color);
       }
     }
@@ -609,7 +646,10 @@
     });
     $("teaching").addEventListener("change", () => {
       state.teaching = $("teaching").checked;
-      if (state.teaching && state.teachingData) state.caption = state.teachingData.ascii;
+      if (state.teaching && state.teachingData) {
+        state.caption = state.teachingData.ascii;
+        $("caption").value = state.caption;
+      }
       render();
     });
     $("cols").addEventListener("input", () => {
