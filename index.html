@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="ebs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Four-symbol image decoder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/page.css?v=20260916d" />
+</head>
+<body data-theme="ebs" data-paint="toast" data-mode="direct">
+  <header>
+    <h1>Four-symbol image decoder</h1>
+    <div class="meta" id="banner-meta">Independent packing of a picture in Drew/Rodney four marks. Not a claim the cartoon was written as quads.</div>
+    <div class="meta">grid <b id="grid-readout">—</b></div>
+    <div class="meta">selected <b id="sel-readout">—</b></div>
+  </header>
+  <div class="shell">
+    <aside class="left">
+      <h2>Image</h2>
+      <p class="note">Default fixture is the EBS “please stand by” cartoon. File input is session-only.</p>
+      <label class="row">Source
+        <input id="file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+      </label>
+      <p class="note" id="source-note">1242×1120 → 160×144 glyphs</p>
+
+      <h2>Encode</h2>
+      <label class="row">Mode
+        <select id="mode">
+          <option value="direct" selected>Direct (A)</option>
+          <option value="textpic">TEXTPIC (B)</option>
+          <option value="bitplane">Bitplane (C)</option>
+        </select>
+      </label>
+      <label class="row">Quantize
+        <select id="qnt">
+          <option value="luma-4" selected>luma-4</option>
+          <option value="luma-chroma">luma-chroma</option>
+          <option value="flag-split">flag-split</option>
+          <option value="rgb-bit">rgb-bit</option>
+        </select>
+      </label>
+      <label class="row">Dither
+        <select id="dither">
+          <option value="none">none</option>
+          <option value="ordered" selected>ordered</option>
+          <option value="floyd">floyd</option>
+        </select>
+      </label>
+      <label class="row">Map
+        <select id="map">
+          <option value="identity" selected>identity</option>
+          <option value="invert">invert</option>
+          <option value="swap-shape">swap shape</option>
+          <option value="swap-fill">swap fill</option>
+          <option value="rotate">rotate</option>
+          <option value="shuffle">shuffle</option>
+        </select>
+      </label>
+      <label class="row" id="caption-row">Caption
+        <input id="caption" type="text" value="EBS STAND BY" maxlength="80" />
+      </label>
+      <label class="row" id="teaching-row"><span>Teaching TEXTPIC</span><input id="teaching" type="checkbox" /></label>
+
+      <h2>Pack</h2>
+      <label class="row">Cols
+        <input id="cols" type="range" min="32" max="620" value="160" />
+      </label>
+      <label class="row">Weave
+        <select id="weave">
+          <option value="raster" selected>Raster L→R, T→B</option>
+          <option value="boustrophedon">Boustrophedon (ox-plow)</option>
+          <option value="spiral">Spiral (outer → in)</option>
+          <option value="columns">Columns (down, then next)</option>
+        </select>
+      </label>
+      <label class="row"><span>Filled frame</span><input id="filled-frame" type="checkbox" /></label>
+      <label class="row"><span>Cell gaps</span><input id="gaps" type="checkbox" checked /></label>
+      <div class="btns">
+        <button class="ghost" id="fit" type="button">Refit</button>
+      </div>
+
+      <h2>Read</h2>
+      <label class="row">Theme
+        <select id="theme">
+          <option value="phosphor">Phosphor (CRT lime)</option>
+          <option value="volt">Volt (hazard yellow)</option>
+          <option value="magma">Magma</option>
+          <option value="ion">Ion (blue / magenta)</option>
+          <option value="ebs" selected>EBS (please stand by)</option>
+          <option value="paper">Paper (light)</option>
+          <option value="oak">Oak (original)</option>
+        </select>
+      </label>
+      <label class="row" id="ebs-paint-row">EBS paint
+        <select id="ebs-paint">
+          <option value="toast" selected>Toast #901131</option>
+          <option value="meaning">Meaning (C1 + extra)</option>
+          <option value="spectrum">Spectrum (cycle 9)</option>
+          <option value="filled">Filled</option>
+        </select>
+      </label>
+      <label class="row">Blend
+        <input id="blend" type="range" min="0" max="100" value="0" />
+      </label>
+      <div class="btns">
+        <button type="button" id="preset-noise">Noise</button>
+        <button type="button" id="preset-signal">Signal</button>
+        <button type="button" id="preset-shuffle">Shuffle</button>
+      </div>
+      <div class="legend">
+        <span class="swatch-code"><i class="swatch sq0"></i>sq0</span>
+        <span class="swatch-code"><i class="swatch sq1"></i>sq1</span>
+        <span class="swatch-code"><i class="swatch bar0"></i>bar0</span>
+        <span class="swatch-code"><i class="swatch bar1"></i>bar1</span>
+        <span class="swatch-bw"><i class="swatch ebs-w"></i>white</span>
+        <span class="swatch-bw"><i class="swatch ebs-k"></i>black</span>
+        <span class="swatch-toast"><i class="swatch toast-sq0"></i>sq0 #901131</span>
+        <span class="swatch-toast"><i class="swatch toast-sq1"></i>sq1 #319011</span>
+        <span class="swatch-toast"><i class="swatch toast-bar0"></i>bar0 #113190</span>
+        <span class="swatch-toast"><i class="swatch toast-bar1"></i>bar1 #903111</span>
+        <span class="swatch-toast"><i class="swatch toast-cell"></i>cell #901171</span>
+      </div>
+      <p class="note">Click a cell. The original stays in the top-right slot. Shuffle is a map — it is not a found picture.</p>
+      <p class="status" id="pack-status">—</p>
+    </aside>
+    <div class="stage">
+      <img id="blend-src" alt="" />
+      <canvas id="page" aria-label="Four-symbol packing of the source picture"></canvas>
+    </div>
+    <aside class="right">
+      <h2>Selected rectangle</h2>
+      <img id="source" alt="Original source picture" />
+      <p class="note" id="peek-note">Blow-up is the source picture. The page itself is the four-symbol packing.</p>
+      <h2>Decode</h2>
+      <canvas id="reconstruct" width="160" height="144" aria-label="Reconstructed 4-level image"></canvas>
+      <div class="decode-row">
+        <figure><figcaption>C1</figcaption><canvas id="plane-c1" width="160" height="144"></canvas></figure>
+        <figure><figcaption>C2</figcaption><canvas id="plane-c2" width="160" height="144"></canvas></figure>
+        <figure><figcaption>C3</figcaption><canvas id="plane-c3" width="160" height="144"></canvas></figure>
+      </div>
+      <h2>Inspect</h2>
+      <div id="inspect-line">Click a cell.</div>
+      <div id="c1-ascii-block">
+        <h2>C1 ASCII</h2>
+        <div id="inspect-text">—</div>
+      </div>
+    </aside>
+  </div>
+  <script src="js/quads.js?v=20260916d"></script>
+  <script src="js/image.js?v=20260916d"></script>
+  <script src="js/layouts.js?v=20260916d"></script>
+  <script src="js/page.js?v=20260916d"></script>
+</body>
+</html>
